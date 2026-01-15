@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Activity Ideas & Voting</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f5f5f5;
+    padding: 24px;
+  }
+  .container {
+    max-width: 800px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+  }
+  #mainApp {
+    display: none;
+  }
+  input, textarea, button {
+    font-size: 16px;
+  }
+  .add { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  input, textarea { padding: 8px; flex: 1 1 200px; }
+  textarea { resize: vertical; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+  th { background: #eee; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- ACCESS CODE SCREEN -->
+  <div id="accessScreen">
+    <h2>Enter Access Code</h2>
+    <input id="accessInput" placeholder="Access Code" />
+    <button onclick="checkAccess()">Enter</button>
+    <p id="accessMsg" style="color: red;"></p>
+  </div>
+
+  <!-- MAIN VOTING APP -->
+  <div id="mainApp">
+    <div style="font-size: 14px; color: #555; text-align: left; margin-bottom: 4px;">
+      Islandsbryggeskole BH-Z 2026
+    </div>
+    <h1 style="text-align: center;">Activity Ideas & Voting</h1>
+
+    <div class="add">
+      <input id="nameInput" placeholder="Your name" />
+      <input id="titleInput" placeholder="Activity title" />
+      <textarea id="detailsInput" rows="2" placeholder="Activity details"></textarea>
+      <button onclick="addIdea()">Add Idea</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Title</th><th>Details</th><th>Votes</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="ideasTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const ACCESS_CODE = "1234"; // 🔐 your access code
+  const ADMIN_CODE = "Marco"; 
+
+  function checkAccess() {
+    const val = document.getElementById("accessInput").value.trim();
+    if (val === ACCESS_CODE) {
+      document.getElementById("accessScreen").style.display = "none";
+      document.getElementById("mainApp").style.display = "block";
+      render();
+    } else {
+      document.getElementById("accessMsg").textContent = "Incorrect code.";
+    }
+  }
+
+  let ideas = JSON.parse(localStorage.getItem("ideas") || "[]");
+
+  function save() {
+    localStorage.setItem("ideas", JSON.stringify(ideas));
+  }
+
+  function render() {
+    ideas.sort((a, b) => b.votes - a.votes);
+    const tbody = document.getElementById("ideasTable");
+    tbody.innerHTML = "";
+    ideas.forEach(idea => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${idea.name}</td>
+        <td>${idea.title}</td>
+        <td>${idea.details}</td>
+        <td><button onclick="vote(${idea.id})">👍</button> ${idea.votes}</td>
+        <td><button onclick="deleteIdea(${idea.id})">🗑 Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function addIdea() {
+    const name = document.getElementById("nameInput").value.trim();
+    const title = document.getElementById("titleInput").value.trim();
+    const details = document.getElementById("detailsInput").value.trim();
+    if (!name || !title) return;
+    ideas.push({ id: Date.now(), name, title, details, votes: 0 });
+    document.getElementById("nameInput").value = "";
+    document.getElementById("titleInput").value = "";
+    document.getElementById("detailsInput").value = "";
+    save();
+    render();
+  }
+
+  function vote(id) {
+    const idea = ideas.find(i => i.id === id);
+    if (idea) { idea.votes++; save(); render(); }
+  }
+
+  function deleteIdea(id) {
+    const code = prompt("Enter admin code to delete this entry:");
+    if (code === ADMIN_CODE) {
+      ideas = ideas.filter(i => i.id !== id);
+      save();
+      render();
+    } else {
+      alert("Incorrect code.");
+    }
+  }
+</script>
+
+</body>
+</html>
