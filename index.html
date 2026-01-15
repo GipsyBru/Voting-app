@@ -17,37 +17,35 @@
     padding: 20px;
     border-radius: 12px;
   }
-  #mainApp {
-    display: none;
-  }
-  input, textarea, button {
-    font-size: 16px;
-  }
+  #mainApp { display: none; }
+  input, textarea, button { font-size: 16px; }
   .add { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
   input, textarea { padding: 8px; flex: 1 1 200px; }
   textarea { resize: vertical; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
   th { background: #eee; }
+  td button { font-size: 14px; padding: 4px 8px; }
 </style>
 </head>
 <body>
 
 <div class="container">
+
   <!-- ACCESS CODE SCREEN -->
   <div id="accessScreen">
     <h2>Enter Access Code</h2>
     <input id="accessInput" placeholder="Access Code" />
     <button onclick="checkAccess()">Enter</button>
-    <p id="accessMsg" style="color: red;"></p>
+    <p id="accessMsg" style="color:red;"></p>
   </div>
 
   <!-- MAIN VOTING APP -->
   <div id="mainApp">
-    <div style="font-size: 14px; color: #555; text-align: left; margin-bottom: 4px;">
+    <div style="font-size:14px; color:#555; text-align:left; margin-bottom:4px;">
       Islandsbryggeskole BH-Z 2026
     </div>
-    <h1 style="text-align: center;">Activity Ideas & Voting</h1>
+    <h1 style="text-align:center;">Activity Ideas & Voting</h1>
 
     <div class="add">
       <input id="nameInput" placeholder="Your name" />
@@ -58,80 +56,110 @@
 
     <table>
       <thead>
-        <tr><th>Name</th><th>Title</th><th>Details</th><th>Votes</th><th>Actions</th></tr>
+        <tr>
+          <th>Name</th>
+          <th>Title</th>
+          <th>Details</th>
+          <th>Votes</th>
+          <th>Actions</th>
+        </tr>
       </thead>
       <tbody id="ideasTable"></tbody>
     </table>
   </div>
+
 </div>
 
 <script>
-  const ACCESS_CODE = "1234"; // 🔐 your access code
-  const ADMIN_CODE = "Marco"; 
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("mainApp").style.display = "none";
+  document.getElementById("accessScreen").style.display = "block";
+});
 
-  function checkAccess() {
-    const val = document.getElementById("accessInput").value.trim();
-    if (val === ACCESS_CODE) {
-      document.getElementById("accessScreen").style.display = "none";
-      document.getElementById("mainApp").style.display = "block";
-      render();
-    } else {
-      document.getElementById("accessMsg").textContent = "Incorrect code.";
-    }
+// Access and admin codes
+const ACCESS_CODE = "1234";
+const ADMIN_CODE = "Marco";
+
+// Load ideas from localStorage
+let ideas = JSON.parse(localStorage.getItem("ideas") || "[]");
+
+// Access code check
+function checkAccess() {
+  const val = document.getElementById("accessInput").value.trim();
+  if(val === ACCESS_CODE) {
+    document.getElementById("accessScreen").style.display = "none";
+    document.getElementById("mainApp").style.display = "block";
+    render();
+  } else {
+    document.getElementById("accessMsg").textContent = "Incorrect code.";
+  }
+}
+
+// Save to localStorage
+function save() {
+  localStorage.setItem("ideas", JSON.stringify(ideas));
+}
+
+// Render table
+function render() {
+  ideas.sort((a,b)=>b.votes - a.votes);
+  const tbody = document.getElementById("ideasTable");
+  tbody.innerHTML = "";
+
+  if(ideas.length === 0){
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#555;">No ideas yet. Add one above!</td></tr>`;
+    return;
   }
 
-  let ideas = JSON.parse(localStorage.getItem("ideas") || "[]");
+  ideas.forEach(idea => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${idea.name}</td>
+      <td>${idea.title}</td>
+      <td>${idea.details}</td>
+      <td><button onclick="vote(${idea.id})">👍</button> ${idea.votes}</td>
+      <td><button onclick="deleteIdea(${idea.id})">🗑 Delete</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
 
-  function save() {
-    localStorage.setItem("ideas", JSON.stringify(ideas));
-  }
+// Add idea
+function addIdea() {
+  const name = document.getElementById("nameInput").value.trim();
+  const title = document.getElementById("titleInput").value.trim();
+  const details = document.getElementById("detailsInput").value.trim();
+  if(!name || !title) return;
 
-  function render() {
-    ideas.sort((a, b) => b.votes - a.votes);
-    const tbody = document.getElementById("ideasTable");
-    tbody.innerHTML = "";
-    ideas.forEach(idea => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${idea.name}</td>
-        <td>${idea.title}</td>
-        <td>${idea.details}</td>
-        <td><button onclick="vote(${idea.id})">👍</button> ${idea.votes}</td>
-        <td><button onclick="deleteIdea(${idea.id})">🗑 Delete</button></td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
+  ideas.push({id: Date.now(), name, title, details, votes:0});
+  document.getElementById("nameInput").value = "";
+  document.getElementById("titleInput").value = "";
+  document.getElementById("detailsInput").value = "";
+  save();
+  render();
+}
 
-  function addIdea() {
-    const name = document.getElementById("nameInput").value.trim();
-    const title = document.getElementById("titleInput").value.trim();
-    const details = document.getElementById("detailsInput").value.trim();
-    if (!name || !title) return;
-    ideas.push({ id: Date.now(), name, title, details, votes: 0 });
-    document.getElementById("nameInput").value = "";
-    document.getElementById("titleInput").value = "";
-    document.getElementById("detailsInput").value = "";
+// Vote
+function vote(id) {
+  const idea = ideas.find(i => i.id === id);
+  if(idea){ idea.votes++; save(); render(); }
+}
+
+// Delete (admin only)
+function deleteIdea(id) {
+  const code = prompt("Enter admin code to delete this entry:");
+  if(code === ADMIN_CODE){
+    ideas = ideas.filter(i => i.id !== id);
     save();
     render();
+  } else {
+    alert("Incorrect code.");
   }
-
-  function vote(id) {
-    const idea = ideas.find(i => i.id === id);
-    if (idea) { idea.votes++; save(); render(); }
-  }
-
-  function deleteIdea(id) {
-    const code = prompt("Enter admin code to delete this entry:");
-    if (code === ADMIN_CODE) {
-      ideas = ideas.filter(i => i.id !== id);
-      save();
-      render();
-    } else {
-      alert("Incorrect code.");
-    }
-  }
+}
 </script>
 
 </body>
 </html>
+
+
+
