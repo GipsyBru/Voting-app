@@ -32,7 +32,6 @@
   th, td { border: 1px solid #ccc; padding: 8px; }
   th { background: #eee; }
 
-  /* Suggestion list */
   .suggestions {
     border: 1px solid #ccc;
     border-top: none;
@@ -42,7 +41,6 @@
   .suggestion {
     padding: 8px;
     cursor: pointer;
-    background: #fff;
   }
   .suggestion:hover {
     background: #f0f0f0;
@@ -71,7 +69,6 @@
       oninput="updateSuggestions()"
       autocomplete="off"
     >
-
     <div id="suggestions" class="suggestions"></div>
 
     <input id="openSpacePassword" placeholder="Password" type="password">
@@ -80,9 +77,19 @@
     <p id="homeMsg" style="color:red;"></p>
   </div>
 
+  <!-- DIRECT ACCESS SCREEN -->
+  <div id="directAccessScreen" class="hidden">
+    <h2 id="directTitle"></h2>
+    <p>Please enter the password to access this space.</p>
+    <input id="directPassword" type="password" placeholder="Password">
+    <button onclick="openSharedSpace()">Enter</button>
+    <p id="directMsg" style="color:red;"></p>
+  </div>
+
   <!-- MAIN APP -->
   <div id="mainApp" class="hidden">
     <button onclick="goHome()">🏠 Home</button>
+    <button onclick="shareSpace()">🔗 Share</button>
 
     <div style="font-size:14px;color:#555;margin-top:10px;">
       <span id="spaceName"></span>
@@ -116,6 +123,7 @@
 <script>
 let spaces = JSON.parse(localStorage.getItem("spaces") || "{}");
 let currentSpace = null;
+let sharedSpaceName = null;
 
 /* Ensure existing space */
 if (!spaces["Islandsbryggeskole BH-Z 2026"]) {
@@ -130,26 +138,63 @@ function saveSpaces() {
   localStorage.setItem("spaces", JSON.stringify(spaces));
 }
 
-function show(screen) {
+function show(id) {
   homeScreen.classList.add("hidden");
   mainApp.classList.add("hidden");
-  document.getElementById(screen).classList.remove("hidden");
+  directAccessScreen.classList.add("hidden");
+  document.getElementById(id).classList.remove("hidden");
 }
 
-/* ---- Suggestions logic (ROBUST) ---- */
+/* ---------- SHARE LOGIC ---------- */
+
+function shareSpace() {
+  const url = `${location.origin}${location.pathname}?space=${encodeURIComponent(currentSpace)}`;
+  navigator.clipboard.writeText(url);
+  alert("Share link copied to clipboard!");
+}
+
+/* ---------- URL HANDLING ---------- */
+
+function checkForSharedLink() {
+  const params = new URLSearchParams(window.location.search);
+  const space = params.get("space");
+
+  if (space && spaces[space]) {
+    sharedSpaceName = space;
+    directTitle.textContent = space;
+    show("directAccessScreen");
+    return true;
+  }
+  return false;
+}
+
+function openSharedSpace() {
+  const password = directPassword.value;
+  if (password === spaces[sharedSpaceName].password) {
+    currentSpace = sharedSpaceName;
+    spaceName.textContent = currentSpace;
+    directPassword.value = "";
+    show("mainApp");
+    render();
+  } else {
+    directMsg.textContent = "Incorrect password.";
+  }
+}
+
+/* ---------- HOME AUTOCOMPLETE ---------- */
+
 function updateSuggestions() {
   const input = openSpaceName.value.toLowerCase().trim();
-  const container = document.getElementById("suggestions");
-  container.innerHTML = "";
+  suggestions.innerHTML = "";
 
   if (!input) return;
 
-  const matches = Object.keys(spaces).filter(name =>
-    name.toLowerCase().includes(input)
+  const matches = Object.keys(spaces).filter(n =>
+    n.toLowerCase().includes(input)
   );
 
-  if (matches.length === 0) {
-    container.innerHTML =
+  if (!matches.length) {
+    suggestions.innerHTML =
       `<div class="suggestion" style="color:#888;">No matching spaces</div>`;
     return;
   }
@@ -160,13 +205,14 @@ function updateSuggestions() {
     div.textContent = name;
     div.onclick = () => {
       openSpaceName.value = name;
-      container.innerHTML = "";
+      suggestions.innerHTML = "";
     };
-    container.appendChild(div);
+    suggestions.appendChild(div);
   });
 }
 
-/* ---- Create space ---- */
+/* ---------- SPACE MANAGEMENT ---------- */
+
 function createSpace() {
   const name = newSpaceName.value.trim();
   const password = newSpacePassword.value.trim();
@@ -182,7 +228,6 @@ function createSpace() {
   openSpace(name, password);
 }
 
-/* ---- Open space ---- */
 function openSpace(nameParam, passParam) {
   const name = nameParam || openSpaceName.value.trim();
   const password = passParam || openSpacePassword.value.trim();
@@ -197,28 +242,29 @@ function openSpace(nameParam, passParam) {
   spaceName.textContent = name;
   openSpaceName.value = "";
   openSpacePassword.value = "";
-  document.getElementById("suggestions").innerHTML = "";
+  suggestions.innerHTML = "";
   homeMsg.textContent = "";
   show("mainApp");
   render();
 }
 
-/* ---- Home ---- */
 function goHome() {
   currentSpace = null;
   newSpaceName.value = "";
   newSpacePassword.value = "";
   openSpaceName.value = "";
   openSpacePassword.value = "";
-  document.getElementById("suggestions").innerHTML = "";
+  suggestions.innerHTML = "";
   homeMsg.textContent = "";
+  history.replaceState({}, "", location.pathname);
   show("homeScreen");
 }
 
-/* ---- Render ---- */
+/* ---------- IDEAS ---------- */
+
 function render() {
   const ideas = spaces[currentSpace].ideas;
-  ideas.sort((a,b) => b.votes - a.votes);
+  ideas.sort((a,b)=>b.votes-a.votes);
   ideasTable.innerHTML = "";
 
   if (!ideas.length) {
@@ -273,7 +319,11 @@ function deleteIdea(id) {
   }
 }
 
-show("homeScreen");
+/* ---------- INIT ---------- */
+
+if (!checkForSharedLink()) {
+  show("homeScreen");
+}
 </script>
 
 </body>
