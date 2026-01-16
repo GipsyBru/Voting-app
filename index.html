@@ -17,34 +17,58 @@
     padding: 20px;
     border-radius: 12px;
   }
-  #mainApp { display: none; }
-  input, textarea, button { font-size: 16px; }
+  input, textarea, button {
+    font-size: 16px;
+    padding: 8px;
+  }
+  button { cursor: pointer; }
+  .hidden { display: none; }
   .add { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-  input, textarea { padding: 8px; flex: 1 1 200px; }
-  textarea { resize: vertical; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
+  th, td { border: 1px solid #ccc; padding: 8px; vertical-align: top; }
   th { background: #eee; }
-  td button { font-size: 14px; padding: 4px 8px; }
 </style>
 </head>
 <body>
 
 <div class="container">
 
-  <!-- ACCESS CODE SCREEN -->
-  <div id="accessScreen">
-    <h2>Enter Access Code</h2>
-    <input id="accessInput" placeholder="Access Code" />
-    <button onclick="checkAccess()">Enter</button>
-    <p id="accessMsg" style="color:red;"></p>
+  <!-- HOME SCREEN -->
+  <div id="homeScreen">
+    <h1>Idea & Voting Spaces</h1>
+
+    <h3>Create a new space</h3>
+    <input id="newSpaceName" placeholder="Space name" /><br><br>
+    <input id="newSpacePassword" placeholder="Password" type="password" /><br><br>
+    <button onclick="createSpace()">Create space</button>
+
+    <hr style="margin:30px 0;">
+
+    <h3>Open existing space</h3>
+    <input
+      id="openSpaceName"
+      placeholder="Start typing space name"
+      list="spaceSuggestions"
+      oninput="checkMatchingSpaces()"
+    />
+    <datalist id="spaceSuggestions"></datalist>
+    <br><br>
+    <input id="openSpacePassword" placeholder="Password" type="password" /><br><br>
+    <button onclick="openSpace()">Open space</button>
+
+    <p id="noMatchMsg" style="color:#888;"></p>
+    <p id="homeMsg" style="color:red;"></p>
   </div>
 
-  <!-- MAIN VOTING APP -->
-  <div id="mainApp">
-    <div style="font-size:14px; color:#555; text-align:left; margin-bottom:4px;">
-      Islandsbryggeskole BH-Z 2026
+  <!-- MAIN APP -->
+  <div id="mainApp" class="hidden">
+
+    <button onclick="goHome()">🏠 Home</button>
+
+    <div style="font-size:14px; color:#555; margin-top:10px;">
+      <span id="spaceName"></span>
     </div>
+
     <h1 style="text-align:center;">Activity Ideas & Voting</h1>
 
     <div class="add">
@@ -71,43 +95,107 @@
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("mainApp").style.display = "none";
-  document.getElementById("accessScreen").style.display = "block";
-});
+let spaces = JSON.parse(localStorage.getItem("spaces") || "{}");
+let currentSpace = null;
 
-// Access and admin codes
-const ACCESS_CODE = "1234";
-const ADMIN_CODE = "Marco";
+/* ---- Ensure existing space ---- */
+if (!spaces["Islandsbryggeskole BH-Z 2026"]) {
+  spaces["Islandsbryggeskole BH-Z 2026"] = {
+    password: "1234",
+    ideas: []
+  };
+  saveSpaces();
+}
 
-// Load ideas from localStorage
-let ideas = JSON.parse(localStorage.getItem("ideas") || "[]");
+/* ---- Utilities ---- */
+function saveSpaces() {
+  localStorage.setItem("spaces", JSON.stringify(spaces));
+}
 
-// Access code check
-function checkAccess() {
-  const val = document.getElementById("accessInput").value.trim();
-  if(val === ACCESS_CODE) {
-    document.getElementById("accessScreen").style.display = "none";
-    document.getElementById("mainApp").style.display = "block";
-    render();
+function show(screen) {
+  homeScreen.classList.add("hidden");
+  mainApp.classList.add("hidden");
+  document.getElementById(screen).classList.remove("hidden");
+}
+
+/* ---- Autocomplete ---- */
+function updateSpaceSuggestions() {
+  const datalist = document.getElementById("spaceSuggestions");
+  datalist.innerHTML = "";
+
+  Object.keys(spaces).sort().forEach(name => {
+    const option = document.createElement("option");
+    option.value = name;
+    datalist.appendChild(option);
+  });
+}
+
+function checkMatchingSpaces() {
+  const input = openSpaceName.value.toLowerCase();
+  const matches = Object.keys(spaces).filter(name =>
+    name.toLowerCase().includes(input)
+  );
+
+  if (input && matches.length === 0) {
+    noMatchMsg.textContent = "No matching spaces";
   } else {
-    document.getElementById("accessMsg").textContent = "Incorrect code.";
+    noMatchMsg.textContent = "";
   }
 }
 
-// Save to localStorage
-function save() {
-  localStorage.setItem("ideas", JSON.stringify(ideas));
+/* ---- Create space ---- */
+function createSpace() {
+  const name = newSpaceName.value.trim();
+  const password = newSpacePassword.value.trim();
+  if (!name || !password) return;
+
+  if (spaces[name]) {
+    homeMsg.textContent = "Space already exists.";
+    return;
+  }
+
+  spaces[name] = { password, ideas: [] };
+  saveSpaces();
+  updateSpaceSuggestions();
+  openSpace(name, password);
 }
 
-// Render table
-function render() {
-  ideas.sort((a,b)=>b.votes - a.votes);
-  const tbody = document.getElementById("ideasTable");
-  tbody.innerHTML = "";
+/* ---- Open space ---- */
+function openSpace(nameParam, passParam) {
+  const name = nameParam || openSpaceName.value.trim();
+  const password = passParam || openSpacePassword.value.trim();
 
-  if(ideas.length === 0){
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#555;">No ideas yet. Add one above!</td></tr>`;
+  const space = spaces[name];
+  if (!space || space.password !== password) {
+    homeMsg.textContent = "Incorrect space name or password.";
+    return;
+  }
+
+  currentSpace = name;
+  spaceName.textContent = name;
+  homeMsg.textContent = "";
+  openSpaceName.value = "";
+  openSpacePassword.value = "";
+  show("mainApp");
+  render();
+}
+
+/* ---- Home ---- */
+function goHome() {
+  currentSpace = null;
+  show("homeScreen");
+}
+
+/* ---- Render ideas ---- */
+function render() {
+  const ideas = spaces[currentSpace].ideas;
+  ideas.sort((a, b) => b.votes - a.votes);
+
+  ideasTable.innerHTML = "";
+
+  if (!ideas.length) {
+    ideasTable.innerHTML =
+      `<tr><td colspan="5" style="text-align:center;color:#555;">No ideas yet.</td></tr>`;
     return;
   }
 
@@ -118,48 +206,59 @@ function render() {
       <td>${idea.title}</td>
       <td>${idea.details}</td>
       <td><button onclick="vote(${idea.id})">👍</button> ${idea.votes}</td>
-      <td><button onclick="deleteIdea(${idea.id})">🗑 Delete</button></td>
+      <td><button onclick="deleteIdea(${idea.id})">🗑</button></td>
     `;
-    tbody.appendChild(tr);
+    ideasTable.appendChild(tr);
   });
 }
 
-// Add idea
+/* ---- Add idea ---- */
 function addIdea() {
-  const name = document.getElementById("nameInput").value.trim();
-  const title = document.getElementById("titleInput").value.trim();
-  const details = document.getElementById("detailsInput").value.trim();
-  if(!name || !title) return;
+  const name = nameInput.value.trim();
+  const title = titleInput.value.trim();
+  const details = detailsInput.value.trim();
+  if (!name || !title) return;
 
-  ideas.push({id: Date.now(), name, title, details, votes:0});
-  document.getElementById("nameInput").value = "";
-  document.getElementById("titleInput").value = "";
-  document.getElementById("detailsInput").value = "";
-  save();
+  spaces[currentSpace].ideas.push({
+    id: Date.now(),
+    name,
+    title,
+    details,
+    votes: 0
+  });
+
+  nameInput.value = titleInput.value = detailsInput.value = "";
+  saveSpaces();
   render();
 }
 
-// Vote
+/* ---- Vote ---- */
 function vote(id) {
-  const idea = ideas.find(i => i.id === id);
-  if(idea){ idea.votes++; save(); render(); }
-}
-
-// Delete (admin only)
-function deleteIdea(id) {
-  const code = prompt("Enter admin code to delete this entry:");
-  if(code === ADMIN_CODE){
-    ideas = ideas.filter(i => i.id !== id);
-    save();
+  const idea = spaces[currentSpace].ideas.find(i => i.id === id);
+  if (idea) {
+    idea.votes++;
+    saveSpaces();
     render();
-  } else {
-    alert("Incorrect code.");
   }
 }
+
+/* ---- Delete (password protected) ---- */
+function deleteIdea(id) {
+  const code = prompt("Enter space password:");
+  if (code === spaces[currentSpace].password) {
+    spaces[currentSpace].ideas =
+      spaces[currentSpace].ideas.filter(i => i.id !== id);
+    saveSpaces();
+    render();
+  } else {
+    alert("Incorrect password.");
+  }
+}
+
+/* ---- Init ---- */
+updateSpaceSuggestions();
+show("homeScreen");
 </script>
 
 </body>
 </html>
-
-
-
