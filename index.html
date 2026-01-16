@@ -17,19 +17,57 @@
     padding: 20px;
     border-radius: 12px;
   }
-  input, textarea, button {
+
+  input, textarea {
     font-size: 16px;
     padding: 8px;
     width: 100%;
     box-sizing: border-box;
   }
-  button { cursor: pointer; margin-top: 8px; }
-  .hidden { display: none; }
-  .add { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-  .add input, .add textarea { width: auto; flex: 1 1 200px; }
 
-  table { width: 100%; border-collapse: collapse; }
-  th, td { border: 1px solid #ccc; padding: 8px; }
+  button {
+    font-size: 16px;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+
+  .hidden { display: none; }
+
+  .top-buttons {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .add {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .add input,
+  .add textarea {
+    flex: 1 1 200px;
+    width: auto;
+  }
+
+  .add button {
+    width: auto;
+    white-space: nowrap;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    vertical-align: top;
+  }
+
   th { background: #eee; }
 
   .suggestions {
@@ -38,10 +76,12 @@
     max-height: 150px;
     overflow-y: auto;
   }
+
   .suggestion {
     padding: 8px;
     cursor: pointer;
   }
+
   .suggestion:hover {
     background: #f0f0f0;
   }
@@ -57,7 +97,9 @@
 
     <h3>Create a new space</h3>
     <input id="newSpaceName" placeholder="Choose a space name">
+    <br><br>
     <input id="newSpacePassword" placeholder="Choose a password" type="password">
+    <br><br>
     <button onclick="createSpace()">Create space</button>
 
     <hr style="margin:30px 0;">
@@ -71,7 +113,9 @@
     >
     <div id="suggestions" class="suggestions"></div>
 
+    <br>
     <input id="openSpacePassword" placeholder="Password" type="password">
+    <br><br>
     <button onclick="openSpace()">Open space</button>
 
     <p id="homeMsg" style="color:red;"></p>
@@ -82,16 +126,20 @@
     <h2 id="directTitle"></h2>
     <p>Please enter the password to access this space.</p>
     <input id="directPassword" type="password" placeholder="Password">
+    <br><br>
     <button onclick="openSharedSpace()">Enter</button>
     <p id="directMsg" style="color:red;"></p>
   </div>
 
   <!-- MAIN APP -->
   <div id="mainApp" class="hidden">
-    <button onclick="goHome()">🏠 Home</button>
-    <button onclick="shareSpace()">🔗 Share</button>
 
-    <div style="font-size:14px;color:#555;margin-top:10px;">
+    <div class="top-buttons">
+      <button onclick="goHome()">🏠 Home</button>
+      <button onclick="shareSpace()">🔗 Share</button>
+    </div>
+
+    <div style="font-size:14px;color:#555;">
       <span id="spaceName"></span>
     </div>
 
@@ -145,16 +193,14 @@ function show(id) {
   document.getElementById(id).classList.remove("hidden");
 }
 
-/* ---------- SHARE LOGIC ---------- */
-
+/* ---------- SHARE ---------- */
 function shareSpace() {
   const url = `${location.origin}${location.pathname}?space=${encodeURIComponent(currentSpace)}`;
   navigator.clipboard.writeText(url);
   alert("Share link copied to clipboard!");
 }
 
-/* ---------- URL HANDLING ---------- */
-
+/* ---------- DIRECT LINK ---------- */
 function checkForSharedLink() {
   const params = new URLSearchParams(window.location.search);
   const space = params.get("space");
@@ -169,8 +215,7 @@ function checkForSharedLink() {
 }
 
 function openSharedSpace() {
-  const password = directPassword.value;
-  if (password === spaces[sharedSpaceName].password) {
+  if (directPassword.value === spaces[sharedSpaceName].password) {
     currentSpace = sharedSpaceName;
     spaceName.textContent = currentSpace;
     directPassword.value = "";
@@ -181,16 +226,15 @@ function openSharedSpace() {
   }
 }
 
-/* ---------- HOME AUTOCOMPLETE ---------- */
-
+/* ---------- SUGGESTIONS ---------- */
 function updateSuggestions() {
   const input = openSpaceName.value.toLowerCase().trim();
   suggestions.innerHTML = "";
 
   if (!input) return;
 
-  const matches = Object.keys(spaces).filter(n =>
-    n.toLowerCase().includes(input)
+  const matches = Object.keys(spaces).filter(name =>
+    name.toLowerCase().includes(input)
   );
 
   if (!matches.length) {
@@ -211,8 +255,7 @@ function updateSuggestions() {
   });
 }
 
-/* ---------- SPACE MANAGEMENT ---------- */
-
+/* ---------- SPACE ---------- */
 function createSpace() {
   const name = newSpaceName.value.trim();
   const password = newSpacePassword.value.trim();
@@ -232,8 +275,7 @@ function openSpace(nameParam, passParam) {
   const name = nameParam || openSpaceName.value.trim();
   const password = passParam || openSpacePassword.value.trim();
 
-  const space = spaces[name];
-  if (!space || space.password !== password) {
+  if (!spaces[name] || spaces[name].password !== password) {
     homeMsg.textContent = "Incorrect space name or password.";
     return;
   }
@@ -261,7 +303,6 @@ function goHome() {
 }
 
 /* ---------- IDEAS ---------- */
-
 function render() {
   const ideas = spaces[currentSpace].ideas;
   ideas.sort((a,b)=>b.votes-a.votes);
@@ -320,7 +361,6 @@ function deleteIdea(id) {
 }
 
 /* ---------- INIT ---------- */
-
 if (!checkForSharedLink()) {
   show("homeScreen");
 }
